@@ -36,7 +36,6 @@ void VulkanEngine::init()
   init_vulkan();
   init_swapchain();
   init_commands();
-  init_sync_structures();
 
   // everything went fine
   _isInitialized = true;
@@ -87,28 +86,55 @@ void VulkanEngine::init_vulkan()
   // save device
   _device = vkbDevice.device;
   _chosenGPU = physicalDevice.physical_device;
+
+  // get graphics queue
+  _graphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
+  _graphicsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
 }
 
 void VulkanEngine::init_swapchain()
 {
+  vkb::SwapchainBuilder swapchainBuilder{ _chosenGPU, _device, _surface };
+  vkb::Swapchain vkbSwapchain = swapchainBuilder
+                                    .use_default_format_selection()
+                                    .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
+                                    .set_desired_extent(_windowExtent.width, _windowExtent.height)
+                                    .build()
+                                    .value();
+
+  // store swap chain and its properties
+  _swapchain = vkbSwapchain.swapchain;
+  _swapchainImages = vkbSwapchain.get_images().value();
+  _swapchainImageViews = vkbSwapchain.get_image_views().value();
+  _swapchainImageFormat = vkbSwapchain.image_format;
 }
 
 void VulkanEngine::init_commands()
 {
-}
+  VkCommandPoolCreateInfo commandPoolInfo = vkinit::command_pool_create_info(_graphicsQueueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+  VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &_commandPool));
 
-void VulkanEngine::init_sync_structures()
-{
+  VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(_commandPool, 1);
+  VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_mainCommandBuffer));
 }
 
 void VulkanEngine::cleanup()
 {
   if (_isInitialized)
   {
-
+    vkDestroyCommandPool(_device, _commandPool, nullptr);
+    vkDestroySwapchainKHR(_device, _swapchain, nullptr);
+    // swap chain resources
+    for(int i = 0; i < _swapchainImageViews.size(); i++)
+    {
+      vkDestroyImageView(_device, _swapchainImageViews[i], nullptr);
+    }
+    vkDestroyDevice(_device, nullptr);
+    vkDestroySurfaceKHR(_instance, _surface, nullptr);
+    vkb::destroy_debug_utils_messenger(_instance, _debug_messenger);
+    vkDestroyInstance(_instance, nullptr);
     SDL_DestroyWindow(_window);
   }
-
   // clear engine pointer
   loadedEngine = nullptr;
 }
