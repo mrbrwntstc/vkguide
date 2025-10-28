@@ -38,6 +38,7 @@ void VulkanEngine::init()
   init_commands();
   init_default_renderpass();
   init_framebuffers();
+  init_sync_structures();
 
   // everything went fine
   _isInitialized = true;
@@ -177,6 +178,23 @@ void VulkanEngine::init_framebuffers()
   }
 }
 
+void VulkanEngine::init_sync_structures()
+{
+  VkFenceCreateInfo fence_info = {};
+  fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+  fence_info.pNext = nullptr;
+  fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+  VK_CHECK(vkCreateFence(_device, &fence_info, nullptr, &_renderFence));
+
+  VkSemaphoreCreateInfo semaphore_info = {};
+  semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+  semaphore_info.pNext = nullptr;
+  semaphore_info.flags = 0;
+
+  VK_CHECK(vkCreateSemaphore(_device, &semaphore_info, nullptr, &_presentSemaphore));
+  VK_CHECK(vkCreateSemaphore(_device, &semaphore_info, nullptr, &_renderSemaphore));
+}
+
 void VulkanEngine::cleanup()
 {
   if (_isInitialized)
@@ -202,7 +220,87 @@ void VulkanEngine::cleanup()
 
 void VulkanEngine::draw()
 {
-  // nothing yet
+  // wait until GPU finishes rendering the last frame
+  VK_CHECK(vkWaitForFences(_device, 1, &_renderFence, VK_TRUE, 1000000000));
+  VK_CHECK(vkResetFences(_device, 1, &_renderFence));
+
+  // request image from swap chain
+  uint32_t swapchain_image_index;
+  VK_CHECK(vkAcquireNextImageKHR(_device, _swapchain, 1000000000, _presentSemaphore, VK_NULL_HANDLE, &swapchain_image_index));
+
+  // begin rendering commands
+  VK_CHECK(vkResetCommandBuffer(_mainCommandBuffer, 0));
+  VkCommandBuffer cmd = _mainCommandBuffer;
+
+  // command buffer recording
+  VkCommandBufferBeginInfo cmd_begin_info = {};
+  cmd_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  cmd_begin_info.pNext = nullptr;
+
+  cmd_begin_info.pInheritanceInfo = nullptr;
+  cmd_begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+  VK_CHECK(vkBeginCommandBuffer(cmd, &cmd_begin_info));
+
+  // clear color frame number that flashes every 120*pi frame period
+  VkClearValue clear_value;
+  float flash = abs(sin(_frameNumber / 120.0f));
+  clear_value.color = { {0.0f, 0.0f, flash, 1.0f} };
+
+  // main render pass
+  VkRenderPassBeginInfo rp_begin_info = {};
+  rp_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+  rp_begin_info.pNext = nullptr;
+
+  rp_begin_info.renderPass = _renderPass;
+  rp_begin_info.renderArea.offset.x = 0;
+  rp_begin_info.renderArea.offset.y = 0;
+  rp_begin_info.renderArea.extent = _windowExtent;
+  rp_begin_info.framebuffer = _framebuffers[swapchain_image_index];
+
+  // connect clear values
+  rp_begin_info.clearValueCount = 1;
+  rp_begin_info.pClearValues = &clear_value;
+
+  vkCmdBeginRenderPass(cmd, &rp_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+  // finalize render pass
+  vkCmdEndRenderPass(cmd);
+  // finalize command buffer
+  VK_CHECK(vkEndCommandBuffer(cmd));
+
+  // send command buffer to the queue
+  VkSubmitInfo submit = {};
+  submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submit.pNext = nullptr;
+
+  VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+  submit.pWaitDstStageMask = &wait_stage;
+  submit.waitSemaphoreCount = 1;
+  submit.pWaitSemaphores = &_presentSemaphore;
+  submit.signalSemaphoreCount = 1;
+  submit.pSignalSemaphores = &_renderSemaphore;
+  submit.commandBufferCount = 1;
+  submit.pCommandBuffers = &cmd;
+
+  VK_CHECK(vkQueueSubmit(_graphicsQueue, 1, &submit, _renderFence));
+
+  // commands submitted; now present the image
+  VkPresentInfoKHR present_info = {};
+  present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+  present_info.pNext = nullptr;
+
+  present_info.pSwapchains = &_swapchain;
+  present_info.swapchainCount = 1;
+
+  present_info.pWaitSemaphores = &_renderSemaphore;
+  present_info.waitSemaphoreCount = 1;
+
+  present_info.pImageIndices = &swapchain_image_index;
+
+  VK_CHECK(vkQueuePresentKHR(_graphicsQueue, &present_info));
+
+  // increase number of frames drawn
+  _frameNumber++;
 }
 
 void VulkanEngine::run()
