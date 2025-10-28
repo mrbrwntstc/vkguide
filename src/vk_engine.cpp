@@ -11,6 +11,7 @@
 
 #include <chrono>
 #include <thread>
+#include <fstream>
 
 VulkanEngine *loadedEngine = nullptr;
 
@@ -39,6 +40,7 @@ void VulkanEngine::init()
   init_default_renderpass();
   init_framebuffers();
   init_sync_structures();
+  init_pipelines();
 
   // everything went fine
   _isInitialized = true;
@@ -194,6 +196,53 @@ void VulkanEngine::init_sync_structures()
   VK_CHECK(vkCreateSemaphore(_device, &semaphore_info, nullptr, &_presentSemaphore));
   VK_CHECK(vkCreateSemaphore(_device, &semaphore_info, nullptr, &_renderSemaphore));
 }
+
+void VulkanEngine::init_pipelines()
+{
+  VkShaderModule triangle_fragment_shader;
+  if(!load_shader_module("shaders/triangle.frag.spv", &triangle_fragment_shader))
+    printf("Failed to load triangle fragment shader\n");
+  else
+    printf("Successfully loaded triangle fragment shader\n");
+  
+  VkShaderModule triangle_vertex_shader;
+  if(!load_shader_module("shaders/triangle.vert.spv", &triangle_vertex_shader))
+    printf("Failed to load triangle vertex shader\n");
+  else
+    printf("Successfully loaded triangle vertex shader\n");
+}
+
+bool VulkanEngine::load_shader_module(const char* filePath, VkShaderModule* outShaderModule)
+{
+  // load shader file into buffer variable
+  std::ifstream file(filePath, std::ios::binary | std::ios::ate);
+  if (!file.is_open())
+  {
+    printf("Failed to open shader file: %s\n", filePath);
+    return false;
+  }
+  size_t file_size = (size_t)file.tellg();
+  std::vector<uint32_t> buffer(file_size / sizeof(uint32_t));
+  file.seekg(0);
+  file.read(reinterpret_cast<char*>(buffer.data()), file_size);
+  file.close();
+
+  // create shader module from buffer
+  VkShaderModuleCreateInfo create_info = {};
+  create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+  create_info.pNext = nullptr;
+  create_info.codeSize = buffer.size() * sizeof(uint32_t);
+  create_info.pCode = buffer.data();
+  VkShaderModule shader_module;
+  if (vkCreateShaderModule(_device, &create_info, nullptr, &shader_module) != VK_SUCCESS)
+  {
+    printf("Failed to create shader module from file: %s\n", filePath);
+    return false;
+  }
+  *outShaderModule = shader_module;
+  return true;
+}
+
 
 void VulkanEngine::cleanup()
 {
