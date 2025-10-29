@@ -4,7 +4,10 @@
             "name": "Mac",
             "includePath": [
                 "${workspaceFolder}/**",
-                "${env:VULKAN_SDK/include}"
+                "${workspaceFolder}/third_party/**/include",
+                "${workspaceFolder}/src",
+                "${env:VULKAN_SDK}/include"
+    
             ],
             "defines": [],
             "compilerPath": "/usr/bin/clang",

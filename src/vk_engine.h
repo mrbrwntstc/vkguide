@@ -52,8 +52,11 @@ public:
 	VkSemaphore _presentSemaphore, _renderSemaphore;
 	VkFence _renderFence;
 
+	int _selected_shader{ 0 };
+
 	VkPipelineLayout _trianglePipelineLayout;
 	VkPipeline _trianglePipeline;
+	VkPipeline _redTrianglePipeline;
 
 private:
 	void init_vulkan();
