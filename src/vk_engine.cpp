@@ -45,6 +45,7 @@ void VulkanEngine::init()
   init_framebuffers();
   init_sync_structures();
   init_pipelines();
+  load_meshes();
 
   // everything went fine
   _isInitialized = true;
@@ -356,6 +357,56 @@ bool VulkanEngine::load_shader_module(const char* filePath, VkShaderModule* outS
   return true;
 }
 
+void VulkanEngine::load_meshes()
+{
+  // make the array 3 vertices long
+  _triangleMesh._vertices.resize(3);
+
+  // vertex positions
+  _triangleMesh._vertices[0].position = {1.f, 1.f, 0.f};
+  _triangleMesh._vertices[1].position = {-1.f, 1.f, 0.f};
+  _triangleMesh._vertices[2].position = {0.f, -1.f, 0.f};
+
+  // vertex colors, all green
+  _triangleMesh._vertices[0].color = {0.f, 1.f, 0.f};
+  _triangleMesh._vertices[1].color = {0.f, 1.f, 0.f};
+  _triangleMesh._vertices[2].color = {0.f, 1.f, 0.f};
+
+  // no normals yet
+
+  upload_mesh(_triangleMesh);
+}
+
+void VulkanEngine::upload_mesh(Mesh& mesh)
+{
+  VkBufferCreateInfo buffer_info = {};
+  buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+  buffer_info.size = mesh._vertices.size() * sizeof(Vertex);
+  buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+  
+  // writeable by CPU, readable by GPU
+  VmaAllocationCreateInfo vma_alloc_info = {};
+  vma_alloc_info.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
+  vma_alloc_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+
+  // allocate the buffer
+  VK_CHECK(vmaCreateBuffer(_allocator, &buffer_info, &vma_alloc_info, 
+    &mesh._vertexBuffer._buffer, 
+    &mesh._vertexBuffer._allocation, 
+    nullptr));
+
+  // add cleanup to destruction queue
+  _mainDeletionQueue.push_function([=]() {
+    vmaDestroyBuffer(_allocator, mesh._vertexBuffer._buffer, mesh._vertexBuffer._allocation);
+  });
+
+  // copy vertex data
+  void* data;
+  vmaMapMemory(_allocator, mesh._vertexBuffer._allocation, &data);
+  memcpy(data, mesh._vertices.data(), mesh._vertices.size() * sizeof(Vertex));
+  vmaUnmapMemory(_allocator, mesh._vertexBuffer._allocation);
+}
+
 void VulkanEngine::cleanup()
 {
   if (_isInitialized)
@@ -364,6 +415,7 @@ void VulkanEngine::cleanup()
     vkWaitForFences(_device, 1, &_renderFence, VK_TRUE, 1000000000);
     _mainDeletionQueue.flush();
 
+    vmaDestroyAllocator(_allocator);
     vkDestroyDevice(_device, nullptr);
     vkDestroySurfaceKHR(_instance, _surface, nullptr);
     vkb::destroy_debug_utils_messenger(_instance, _debug_messenger);

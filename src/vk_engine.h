@@ -4,6 +4,7 @@
 #pragma once
 
 #include <vk_types.h>
+#include <vk_mesh.h>
 
 struct DeletionQueue
 {
@@ -82,6 +83,9 @@ public:
 
 	VmaAllocator _allocator; // allocate memory on the GPU for buffers and images
 
+	VkPipeline _meshPipeline;
+	Mesh _triangleMesh;
+
 private:
 	void init_vulkan();
 	void init_swapchain();
@@ -92,6 +96,9 @@ private:
 	void init_pipelines();
 
 	bool load_shader_module(const char* filePath, VkShaderModule* outShaderModule);
+
+	void load_meshes();
+	void upload_mesh(Mesh& mesh);
 };
 
 class PipelineBuilder
