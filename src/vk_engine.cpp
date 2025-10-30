@@ -14,6 +14,9 @@
 #include <fstream>
 #include <iostream>
 
+#define VMA_IMPLEMENTATION
+#include <vk_mem_alloc.h>
+
 VulkanEngine *loadedEngine = nullptr;
 
 VulkanEngine &VulkanEngine::Get() { return *loadedEngine; }
@@ -96,6 +99,13 @@ void VulkanEngine::init_vulkan()
   // get graphics queue
   _graphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
   _graphicsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
+
+  // memory allocator
+  VmaAllocatorCreateInfo allocatorInfo = {};
+  allocatorInfo.physicalDevice = _chosenGPU;
+  allocatorInfo.device = _device;
+  allocatorInfo.instance = _instance;
+  vmaCreateAllocator(&allocatorInfo, &_allocator);
 }
 
 void VulkanEngine::init_swapchain()
@@ -350,6 +360,7 @@ void VulkanEngine::cleanup()
 {
   if (_isInitialized)
   {
+    vkDeviceWaitIdle(_device);
     vkWaitForFences(_device, 1, &_renderFence, VK_TRUE, 1000000000);
     _mainDeletionQueue.flush();
 

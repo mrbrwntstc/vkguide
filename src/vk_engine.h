@@ -80,6 +80,8 @@ public:
 
 	DeletionQueue _mainDeletionQueue;
 
+	VmaAllocator _allocator; // allocate memory on the GPU for buffers and images
+
 private:
 	void init_vulkan();
 	void init_swapchain();

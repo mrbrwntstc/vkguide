@@ -21,6 +21,12 @@
 #include <glm/vec4.hpp>
 
 
+struct AllocatedBuffer
+{
+    VkBuffer _buffer;
+    VmaAllocation _allocation;
+};
+
 #define VK_CHECK(x)                                                     \
     do {                                                                \
         VkResult err = x;                                               \
