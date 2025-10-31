@@ -1,5 +1,8 @@
 #include <vk_mesh.h>
 
+#include <tiny_obj_loader.h>
+#include <iostream>
+
 VertexInputDescription Vertex::get_vertex_description()
 {
     VertexInputDescription description;
@@ -38,4 +41,9 @@ VertexInputDescription Vertex::get_vertex_description()
     description.attributes.push_back(colorAttribute);
 
     return description;
+}
+
+bool Mesh::load_from_obj(const char* filename)
+{
+  return false;
 }

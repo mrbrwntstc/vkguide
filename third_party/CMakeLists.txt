@@ -6,6 +6,8 @@ add_library(vma INTERFACE)
 
 add_library(stb_image INTERFACE)
 
+add_library(tinyobjloader STATIC)
+
 add_subdirectory(fastgltf)
 add_subdirectory(fmt EXCLUDE_FROM_ALL)
 add_subdirectory(SDL EXCLUDE_FROM_ALL)
@@ -23,6 +25,12 @@ set_property(TARGET vkbootstrap PROPERTY CXX_STANDARD 20)
 target_include_directories(vma INTERFACE vma)
 
 target_include_directories(glm INTERFACE glm)
+
+target_sources(tinyobjloader PRIVATE 
+    tinyobjloader/tiny_obj_loader.h
+    tinyobjloader/tiny_obj_loader.cc)
+
+target_include_directories(tinyobjloader PUBLIC tinyobjloader)
 
 #add_library(sdl2 INTERFACE)
 
