@@ -97,6 +97,10 @@ public:
 
 	Mesh _monkeyMesh;
 
+	VkImageView _depthImageView;
+	AllocatedImage _depthImage;
+	VkFormat _depthFormat;
+
 private:
 	void init_vulkan();
 	void init_swapchain();

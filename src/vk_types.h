@@ -27,6 +27,12 @@ struct AllocatedBuffer
     VmaAllocation _allocation;
 };
 
+struct AllocatedImage
+{
+    VkImage _image;
+    VmaAllocation _allocation;
+};
+
 #define VK_CHECK(x)                                                     \
     do {                                                                \
         VkResult err = x;                                               \

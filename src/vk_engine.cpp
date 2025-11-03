@@ -128,7 +128,41 @@ void VulkanEngine::init_swapchain()
   _swapchainImageViews = vkbSwapchain.get_image_views().value();
   _swapchainImageFormat = vkbSwapchain.image_format;
 
+  // depth image size will match window
+  VkExtent3D depthImageExtent = {
+    _windowExtent.width,
+    _windowExtent.height,
+    1
+  };
+
+  // hardcoded depth format
+  _depthFormat = VK_FORMAT_D32_SFLOAT;
+  VkImageCreateInfo dimg_info = vkinit::image_create_info(_depthFormat,
+                                                          VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                                                          depthImageExtent);
+  
+  VmaAllocationCreateInfo dimg_allocinfo = {};
+  dimg_allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+  dimg_allocinfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+  // create image
+  vmaCreateImage(_allocator,
+                 &dimg_info,
+                 &dimg_allocinfo,
+                 &_depthImage._image,
+                 &_depthImage._allocation,
+                 nullptr);
+  
+  // create image view
+  VkImageViewCreateInfo dview_info = vkinit::imageview_create_info(_depthFormat,
+                                                                    _depthImage._image,
+                                                                    VK_IMAGE_ASPECT_DEPTH_BIT);
+
+  VK_CHECK(vkCreateImageView(_device, &dview_info, nullptr, &_depthImageView));
+
   _mainDeletionQueue.push_function([=]() {
+    vkDestroyImageView(_device, _depthImageView, nullptr);
+    vmaDestroyImage(_allocator, _depthImage._image, _depthImage._allocation);
     vkDestroySwapchainKHR(_device, _swapchain, nullptr);
   });
 }
