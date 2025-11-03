@@ -415,7 +415,11 @@ void VulkanEngine::load_meshes()
 
   // no normals yet
 
+  // load the monkey
+  _monkeyMesh.load_from_obj("assets/monkey_smooth.obj");
+
   upload_mesh(_triangleMesh);
+  upload_mesh(_monkeyMesh);
 }
 
 void VulkanEngine::upload_mesh(Mesh& mesh)
@@ -523,7 +527,8 @@ void VulkanEngine::draw()
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _meshPipeline);
   VkDeviceSize offset = 0;
-  vkCmdBindVertexBuffers(cmd, 0, 1, &_triangleMesh._vertexBuffer._buffer, &offset);
+  // vkCmdBindVertexBuffers(cmd, 0, 1, &_triangleMesh._vertexBuffer._buffer, &offset);
+  vkCmdBindVertexBuffers(cmd, 0, 1, &_monkeyMesh._vertexBuffer._buffer, &offset);
 
   // model view matrix
   glm::vec3 cam_pos = { 0.f, 0.f, -2.f };
@@ -540,7 +545,8 @@ void VulkanEngine::draw()
   constants.render_matrix = mesh_matrix;
 
   vkCmdPushConstants(cmd, _meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
-  vkCmdDraw(cmd, static_cast<uint32_t>(_triangleMesh._vertices.size()), 1, 0, 0);
+  // vkCmdDraw(cmd, static_cast<uint32_t>(_triangleMesh._vertices.size()), 1, 0, 0);
+  vkCmdDraw(cmd, static_cast<uint32_t>(_monkeyMesh._vertices.size()), 1, 0, 0);
   
   // finalize render pass
   vkCmdEndRenderPass(cmd);

@@ -45,5 +45,64 @@ VertexInputDescription Vertex::get_vertex_description()
 
 bool Mesh::load_from_obj(const char* filename)
 {
-  return false;
+  tinyobj::attrib_t attrib; // vertex arrays
+  std::vector<tinyobj::shape_t> shapes;
+  std::vector<tinyobj::material_t> materials;
+
+  std::string warn;
+  std::string err;
+
+  // load the OBJ file
+  tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename);
+  if (!warn.empty())
+    std::cout << "WARN: " << warn << std::endl;
+  
+  if (!err.empty())
+  {
+    std::cerr << "ERR: " << err << std::endl;
+    return false;
+  }
+
+  // loop over shapes
+  for(size_t s = 0; s < shapes.size(); ++s)
+  {
+    // loop over faces
+    size_t index_offset = 0;
+    for(size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); ++f)
+    {
+      // hardcode loading triangles
+      int fv = 3;
+
+      // loop over vertices in the face
+      for(size_t v = 0; v < fv; ++v)
+      {
+        // access to vertex
+        tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+
+        tinyobj::real_t vx = attrib.vertices[3*idx.vertex_index+0];
+        tinyobj::real_t vy = attrib.vertices[3*idx.vertex_index+1];
+        tinyobj::real_t vz = attrib.vertices[3*idx.vertex_index+2];
+
+        tinyobj::real_t nx = attrib.normals[3 * idx.normal_index + 0];
+				tinyobj::real_t ny = attrib.normals[3 * idx.normal_index + 1];
+				tinyobj::real_t nz = attrib.normals[3 * idx.normal_index + 2];
+
+        Vertex new_vertex;
+        new_vertex.position.x = vx;
+        new_vertex.position.y = vy;
+        new_vertex.position.z = vz;
+
+        new_vertex.normal.x = nx;
+        new_vertex.normal.y = ny;
+        new_vertex.normal.z = nz;
+
+        new_vertex.color = new_vertex.normal;
+
+        _vertices.push_back(new_vertex);
+      }
+      index_offset += fv;
+    }
+  }
+
+  return true;
 }
