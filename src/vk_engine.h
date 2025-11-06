@@ -98,19 +98,9 @@ public:
 
 	int _selected_shader{ 0 };
 
-	VkPipelineLayout _trianglePipelineLayout;
-	VkPipeline _trianglePipeline;
-	VkPipeline _redTrianglePipeline;
-
 	DeletionQueue _mainDeletionQueue;
 
 	VmaAllocator _allocator; // allocate memory on the GPU for buffers and images
-
-	VkPipeline _meshPipeline;
-	Mesh _triangleMesh;
-	VkPipelineLayout _meshPipelineLayout;
-
-	Mesh _monkeyMesh;
 
 	VkImageView _depthImageView;
 	AllocatedImage _depthImage;

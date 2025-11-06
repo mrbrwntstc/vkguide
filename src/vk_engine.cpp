@@ -365,16 +365,10 @@ void VulkanEngine::init_pipelines()
   else
     std::cout << "Mesh vertex shader successfully loaded" << std::endl;
   // ---
-  
-  // pipeline layout
-  VkPipelineLayoutCreateInfo pipeline_layout_info = vkinit::pipeline_layout_create_info();
-  VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr, &_trianglePipelineLayout));
+
 
   // pipeline builder
   PipelineBuilder pipeline_builder;
-  // shader stages
-  pipeline_builder._shaderStages.push_back(vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, triangle_vertex_shader));
-  pipeline_builder._shaderStages.push_back(vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, triangle_fragment_shader));
   // vertex input state
   pipeline_builder._vertexInputInfo = vkinit::vertex_input_state_create_info();
   // input assembly
@@ -395,31 +389,23 @@ void VulkanEngine::init_pipelines()
   pipeline_builder._multisampling = vkinit::multisampling_state_create_info();
   // color blending
   pipeline_builder._colorBlendAttachment = vkinit::color_blend_attachment_state();
-  // pipeline layout
-  pipeline_builder._pipelineLayout = _trianglePipelineLayout;
   // depth stencil
   pipeline_builder._depthStencil = vkinit::depth_stencil_create_info(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
-  // build the pipeline
-  _trianglePipeline = pipeline_builder.build_pipeline(_device, _renderPass);
 
-  // red triangle pipeline
-  pipeline_builder._shaderStages.clear();
-  pipeline_builder._shaderStages.push_back(vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, redTriangleVertShader));
-  pipeline_builder._shaderStages.push_back(vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, redTriangleFragShader));
-  _redTrianglePipeline = pipeline_builder.build_pipeline(_device, _renderPass);
-
-  // mesh pipeline layout
-  VkPipelineLayoutCreateInfo mesh_pipeline_layout_info = vkinit::pipeline_layout_create_info();
+  // pipeline layout
+  // ---
+  VkPipelineLayoutCreateInfo default_pipeline_layout_info = vkinit::pipeline_layout_create_info();
+  VkPipelineLayout default_pipeline_layout;
   // set push constants
   VkPushConstantRange push_constant;
   push_constant.offset = 0;
   push_constant.size = sizeof(MeshPushConstants);
   push_constant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-  mesh_pipeline_layout_info.pPushConstantRanges = &push_constant;
-  mesh_pipeline_layout_info.pushConstantRangeCount = 1;
-  VK_CHECK(vkCreatePipelineLayout(_device, &mesh_pipeline_layout_info, nullptr, &_meshPipelineLayout));
+  default_pipeline_layout_info.pPushConstantRanges = &push_constant;
+  default_pipeline_layout_info.pushConstantRangeCount = 1;
+  VK_CHECK(vkCreatePipelineLayout(_device, &default_pipeline_layout_info, nullptr, &default_pipeline_layout));
+  // --- pipeline layout
 
-  // mesh pipeline
   VertexInputDescription vertexDescription = Vertex::get_vertex_description();
   
   pipeline_builder._vertexInputInfo.pVertexAttributeDescriptions = vertexDescription.attributes.data();
@@ -428,13 +414,13 @@ void VulkanEngine::init_pipelines()
   pipeline_builder._vertexInputInfo.pVertexBindingDescriptions = vertexDescription.bindings.data();
   pipeline_builder._vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(vertexDescription.bindings.size());
 
-  pipeline_builder._shaderStages.clear();
   pipeline_builder._shaderStages.push_back(vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, meshVertexShader));
   pipeline_builder._shaderStages.push_back(vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, triangle_fragment_shader));
-  pipeline_builder._pipelineLayout = _meshPipelineLayout;
-  _meshPipeline = pipeline_builder.build_pipeline(_device, _renderPass);
+  pipeline_builder._pipelineLayout = default_pipeline_layout;
+  VkPipeline default_pipeline;
+  default_pipeline = pipeline_builder.build_pipeline(_device, _renderPass);
 
-  create_material(_meshPipeline, _meshPipelineLayout, "defaultmesh");
+  create_material(default_pipeline, default_pipeline_layout, "defaultmesh");
 
   // cleanup shader modules
   vkDestroyShaderModule(_device, meshVertexShader, nullptr);
@@ -444,11 +430,8 @@ void VulkanEngine::init_pipelines()
   vkDestroyShaderModule(_device, redTriangleFragShader, nullptr);
 
   _mainDeletionQueue.push_function([=]() {
-    vkDestroyPipeline(_device, _trianglePipeline, nullptr);
-    vkDestroyPipeline(_device, _redTrianglePipeline, nullptr);
-    vkDestroyPipeline(_device, _meshPipeline, nullptr);
-    vkDestroyPipelineLayout(_device, _trianglePipelineLayout, nullptr);
-    vkDestroyPipelineLayout(_device, _meshPipelineLayout, nullptr);
+    vkDestroyPipeline(_device, default_pipeline, nullptr);
+    vkDestroyPipelineLayout(_device, default_pipeline_layout, nullptr);
   });
 }
 
@@ -486,6 +469,7 @@ bool VulkanEngine::load_shader_module(const char* filePath, VkShaderModule* outS
 void VulkanEngine::load_meshes()
 {
   // make the array 3 vertices long
+  Mesh _triangleMesh;
   _triangleMesh._vertices.resize(3);
 
   // vertex positions
@@ -501,6 +485,7 @@ void VulkanEngine::load_meshes()
   // no normals yet
 
   // load the monkey
+  Mesh _monkeyMesh;
   _monkeyMesh.load_from_obj("assets/monkey_smooth.obj");
 
   upload_mesh(_triangleMesh);
@@ -610,14 +595,6 @@ void VulkanEngine::draw()
   // render loop
   // ---
   vkCmdBeginRenderPass(cmd, &rp_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-
-  // if(_selected_shader == 0)
-  //   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline);
-  // else
-  //   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _redTrianglePipeline);
-  // vkCmdDraw(cmd, 3, 1, 0, 0);
-
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _meshPipeline);
 
   draw_objects(cmd, _renderables.data(), static_cast<int>(_renderables.size()));
   
