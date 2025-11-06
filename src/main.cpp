@@ -4,11 +4,11 @@ int main(int argc, char* argv[])
 {
 	VulkanEngine engine;
 
-	engine.init();	
+	engine.init();
 	
-	engine.run();	
+	engine.run();
 
-	engine.cleanup();	
+	engine.cleanup();
 
 	return 0;
 }
