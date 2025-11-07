@@ -596,6 +596,12 @@ void VulkanEngine::draw()
   // ---
   vkCmdBeginRenderPass(cmd, &rp_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
+  std::sort(_renderables.begin(), _renderables.end(), [](const RenderObject &a, const RenderObject &b) {
+    if(a.material->pipeline == b.material->pipeline)
+      return a.mesh < b.mesh;
+    return a.material->pipeline < b.material->pipeline;
+  });
+
   draw_objects(cmd, _renderables.data(), static_cast<int>(_renderables.size()));
   
   // finalize render pass
