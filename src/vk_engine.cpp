@@ -365,16 +365,10 @@ void VulkanEngine::init_pipelines()
   else
     std::cout << "Mesh vertex shader successfully loaded" << std::endl;
   // ---
-  
-  // pipeline layout
-  VkPipelineLayoutCreateInfo pipeline_layout_info = vkinit::pipeline_layout_create_info();
-  VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr, &_trianglePipelineLayout));
+
 
   // pipeline builder
   PipelineBuilder pipeline_builder;
-  // shader stages
-  pipeline_builder._shaderStages.push_back(vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, triangle_vertex_shader));
-  pipeline_builder._shaderStages.push_back(vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, triangle_fragment_shader));
   // vertex input state
   pipeline_builder._vertexInputInfo = vkinit::vertex_input_state_create_info();
   // input assembly
@@ -395,31 +389,23 @@ void VulkanEngine::init_pipelines()
   pipeline_builder._multisampling = vkinit::multisampling_state_create_info();
   // color blending
   pipeline_builder._colorBlendAttachment = vkinit::color_blend_attachment_state();
-  // pipeline layout
-  pipeline_builder._pipelineLayout = _trianglePipelineLayout;
   // depth stencil
   pipeline_builder._depthStencil = vkinit::depth_stencil_create_info(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
-  // build the pipeline
-  _trianglePipeline = pipeline_builder.build_pipeline(_device, _renderPass);
 
-  // red triangle pipeline
-  pipeline_builder._shaderStages.clear();
-  pipeline_builder._shaderStages.push_back(vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, redTriangleVertShader));
-  pipeline_builder._shaderStages.push_back(vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, redTriangleFragShader));
-  _redTrianglePipeline = pipeline_builder.build_pipeline(_device, _renderPass);
-
-  // mesh pipeline layout
-  VkPipelineLayoutCreateInfo mesh_pipeline_layout_info = vkinit::pipeline_layout_create_info();
+  // pipeline layout
+  // ---
+  VkPipelineLayoutCreateInfo default_pipeline_layout_info = vkinit::pipeline_layout_create_info();
+  VkPipelineLayout default_pipeline_layout;
   // set push constants
   VkPushConstantRange push_constant;
   push_constant.offset = 0;
   push_constant.size = sizeof(MeshPushConstants);
   push_constant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-  mesh_pipeline_layout_info.pPushConstantRanges = &push_constant;
-  mesh_pipeline_layout_info.pushConstantRangeCount = 1;
-  VK_CHECK(vkCreatePipelineLayout(_device, &mesh_pipeline_layout_info, nullptr, &_meshPipelineLayout));
+  default_pipeline_layout_info.pPushConstantRanges = &push_constant;
+  default_pipeline_layout_info.pushConstantRangeCount = 1;
+  VK_CHECK(vkCreatePipelineLayout(_device, &default_pipeline_layout_info, nullptr, &default_pipeline_layout));
+  // --- pipeline layout
 
-  // mesh pipeline
   VertexInputDescription vertexDescription = Vertex::get_vertex_description();
   
   pipeline_builder._vertexInputInfo.pVertexAttributeDescriptions = vertexDescription.attributes.data();
@@ -428,13 +414,13 @@ void VulkanEngine::init_pipelines()
   pipeline_builder._vertexInputInfo.pVertexBindingDescriptions = vertexDescription.bindings.data();
   pipeline_builder._vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(vertexDescription.bindings.size());
 
-  pipeline_builder._shaderStages.clear();
   pipeline_builder._shaderStages.push_back(vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, meshVertexShader));
   pipeline_builder._shaderStages.push_back(vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, triangle_fragment_shader));
-  pipeline_builder._pipelineLayout = _meshPipelineLayout;
-  _meshPipeline = pipeline_builder.build_pipeline(_device, _renderPass);
+  pipeline_builder._pipelineLayout = default_pipeline_layout;
+  VkPipeline default_pipeline;
+  default_pipeline = pipeline_builder.build_pipeline(_device, _renderPass);
 
-  create_material(_meshPipeline, _meshPipelineLayout, "defaultmesh");
+  create_material(default_pipeline, default_pipeline_layout, "defaultmesh");
 
   // cleanup shader modules
   vkDestroyShaderModule(_device, meshVertexShader, nullptr);
@@ -444,11 +430,8 @@ void VulkanEngine::init_pipelines()
   vkDestroyShaderModule(_device, redTriangleFragShader, nullptr);
 
   _mainDeletionQueue.push_function([=]() {
-    vkDestroyPipeline(_device, _trianglePipeline, nullptr);
-    vkDestroyPipeline(_device, _redTrianglePipeline, nullptr);
-    vkDestroyPipeline(_device, _meshPipeline, nullptr);
-    vkDestroyPipelineLayout(_device, _trianglePipelineLayout, nullptr);
-    vkDestroyPipelineLayout(_device, _meshPipelineLayout, nullptr);
+    vkDestroyPipeline(_device, default_pipeline, nullptr);
+    vkDestroyPipelineLayout(_device, default_pipeline_layout, nullptr);
   });
 }
 
@@ -486,6 +469,7 @@ bool VulkanEngine::load_shader_module(const char* filePath, VkShaderModule* outS
 void VulkanEngine::load_meshes()
 {
   // make the array 3 vertices long
+  Mesh _triangleMesh;
   _triangleMesh._vertices.resize(3);
 
   // vertex positions
@@ -501,6 +485,7 @@ void VulkanEngine::load_meshes()
   // no normals yet
 
   // load the monkey
+  Mesh _monkeyMesh;
   _monkeyMesh.load_from_obj("assets/monkey_smooth.obj");
 
   upload_mesh(_triangleMesh);
@@ -611,13 +596,11 @@ void VulkanEngine::draw()
   // ---
   vkCmdBeginRenderPass(cmd, &rp_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
-  // if(_selected_shader == 0)
-  //   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline);
-  // else
-  //   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _redTrianglePipeline);
-  // vkCmdDraw(cmd, 3, 1, 0, 0);
-
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _meshPipeline);
+  std::sort(_renderables.begin(), _renderables.end(), [](const RenderObject &a, const RenderObject &b) {
+    if(a.material->pipeline == b.material->pipeline)
+      return a.mesh < b.mesh;
+    return a.material->pipeline < b.material->pipeline;
+  });
 
   draw_objects(cmd, _renderables.data(), static_cast<int>(_renderables.size()));
   
@@ -691,6 +674,57 @@ void VulkanEngine::run()
           stop_rendering = false;
         }
       }
+
+      float cam_speed = 5.f;
+      if(e.type == SDL_KEYDOWN)
+      {
+        switch(e.key.keysym.sym)
+        {
+          case SDLK_w:
+            _camera.velocity_forward = cam_speed;
+            break;
+          case SDLK_s:
+            _camera.velocity_forward = -cam_speed;
+            break;
+          case SDLK_a:
+            _camera.velocity_right = -cam_speed;
+            break;
+          case SDLK_d:
+            _camera.velocity_right = cam_speed;
+            break;
+          case SDLK_q:
+            _camera.velocity_up = -cam_speed;
+            break;
+          case SDLK_e:
+            _camera.velocity_up = cam_speed;
+            break;
+          default:
+            break;
+        }
+      }
+
+      if(e.type == SDL_KEYUP)
+      {
+        switch(e.key.keysym.sym)
+        {
+          case SDLK_w:
+          case SDLK_s:
+            if(_camera.velocity_forward != 0.f)
+              _camera.velocity_forward = 0.f;
+            break;
+          case SDLK_a:
+          case SDLK_d:
+            if(_camera.velocity_right != 0.f)
+              _camera.velocity_right = 0.f;
+            break;
+          case SDLK_q:
+          case SDLK_e:
+            if(_camera.velocity_up != 0.f)
+              _camera.velocity_up = 0.f;
+          default:
+            break;
+        }
+      }
     }
 
     // do not draw if we are minimized
@@ -757,10 +791,10 @@ void VulkanEngine::init_scene()
 
 void VulkanEngine::draw_objects(VkCommandBuffer cmd, RenderObject* first, int count)
 {
-  glm::vec3 cam_pos = {0.f, -6.f, -10.f};
-
-  // glm::mat4 view = glm::translate(glm::mat4{1.f}, cam_pos);
-  glm::mat4 view = glm::lookAt(cam_pos, glm::vec3{0.f, 0.f, 0.f}, glm::vec3{0.f, 1.f, 0.f});
+  _camera.position += _camera.forward * _camera.velocity_forward;
+  _camera.position += glm::normalize(glm::cross(_camera.forward, _camera.up)) * _camera.velocity_right;
+  _camera.position += _camera.up * _camera.velocity_up;
+  glm::mat4 view = glm::lookAt(_camera.position, _camera.position + _camera.forward, _camera.up);
   // camera projection
   glm::mat4 projection = glm::perspective(glm::radians(70.f), _windowExtent.width / static_cast<float>(_windowExtent.height), 0.1f, 200.f);
   projection[1][1] *= -1; // flip Y for vulkan
