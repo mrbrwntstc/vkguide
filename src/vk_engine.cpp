@@ -668,6 +668,57 @@ void VulkanEngine::run()
           stop_rendering = false;
         }
       }
+
+      float cam_speed = 5.f;
+      if(e.type == SDL_KEYDOWN)
+      {
+        switch(e.key.keysym.sym)
+        {
+          case SDLK_w:
+            _camera.velocity_forward = cam_speed;
+            break;
+          case SDLK_s:
+            _camera.velocity_forward = -cam_speed;
+            break;
+          case SDLK_a:
+            _camera.velocity_right = -cam_speed;
+            break;
+          case SDLK_d:
+            _camera.velocity_right = cam_speed;
+            break;
+          case SDLK_q:
+            _camera.velocity_up = -cam_speed;
+            break;
+          case SDLK_e:
+            _camera.velocity_up = cam_speed;
+            break;
+          default:
+            break;
+        }
+      }
+
+      if(e.type == SDL_KEYUP)
+      {
+        switch(e.key.keysym.sym)
+        {
+          case SDLK_w:
+          case SDLK_s:
+            if(_camera.velocity_forward != 0.f)
+              _camera.velocity_forward = 0.f;
+            break;
+          case SDLK_a:
+          case SDLK_d:
+            if(_camera.velocity_right != 0.f)
+              _camera.velocity_right = 0.f;
+            break;
+          case SDLK_q:
+          case SDLK_e:
+            if(_camera.velocity_up != 0.f)
+              _camera.velocity_up = 0.f;
+          default:
+            break;
+        }
+      }
     }
 
     // do not draw if we are minimized
@@ -734,10 +785,10 @@ void VulkanEngine::init_scene()
 
 void VulkanEngine::draw_objects(VkCommandBuffer cmd, RenderObject* first, int count)
 {
-  glm::vec3 cam_pos = {0.f, -6.f, -10.f};
-
-  // glm::mat4 view = glm::translate(glm::mat4{1.f}, cam_pos);
-  glm::mat4 view = glm::lookAt(cam_pos, glm::vec3{0.f, 0.f, 0.f}, glm::vec3{0.f, 1.f, 0.f});
+  _camera.position += _camera.forward * _camera.velocity_forward;
+  _camera.position += glm::normalize(glm::cross(_camera.forward, _camera.up)) * _camera.velocity_right;
+  _camera.position += _camera.up * _camera.velocity_up;
+  glm::mat4 view = glm::lookAt(_camera.position, _camera.position + _camera.forward, _camera.up);
   // camera projection
   glm::mat4 projection = glm::perspective(glm::radians(70.f), _windowExtent.width / static_cast<float>(_windowExtent.height), 0.1f, 200.f);
   projection[1][1] *= -1; // flip Y for vulkan

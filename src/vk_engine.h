@@ -49,6 +49,16 @@ struct RenderObject {
 	glm::mat4 transformMatrix;
 };
 
+struct Camera
+{
+	glm::vec3 position = {0.f, -6.f, -10.f};
+	glm::vec3 forward = glm::vec3{0.f, 0.f, 1.f};
+	glm::vec3 up = glm::vec3{0.f, 1.f, 0.f};
+	float velocity_forward = 0;
+  float velocity_right = 0;
+	float velocity_up = 0;
+};
+
 class VulkanEngine {
 public:
 
@@ -116,6 +126,8 @@ public:
 	Mesh* get_mesh(const std::string& name);
 
 	void draw_objects(VkCommandBuffer cmd, RenderObject* first, int count);
+
+	Camera _camera;
 
 private:
 	void init_vulkan();
