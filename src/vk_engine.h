@@ -59,6 +59,16 @@ struct Camera
 	float velocity_up = 0;
 };
 
+struct FrameData
+{
+	VkSemaphore _presentSemaphore, _renderSemaphore;
+	VkFence _renderFence;
+	VkCommandPool _commandPool;
+	VkCommandBuffer _mainCommandBuffer;
+};
+
+constexpr unsigned int FRAME_OVERLAP = 2;
+
 class VulkanEngine {
 public:
 
@@ -97,14 +107,8 @@ public:
 	VkQueue _graphicsQueue;
 	uint32_t _graphicsQueueFamily;
 
-	VkCommandPool _commandPool;
-	VkCommandBuffer _mainCommandBuffer;
-
 	VkRenderPass _renderPass;
 	std::vector<VkFramebuffer> _framebuffers;
-
-	VkSemaphore _presentSemaphore, _renderSemaphore;
-	VkFence _renderFence;
 
 	int _selected_shader{ 0 };
 
@@ -128,6 +132,9 @@ public:
 	void draw_objects(VkCommandBuffer cmd, RenderObject* first, int count);
 
 	Camera _camera;
+
+	FrameData _frames[FRAME_OVERLAP];
+	inline FrameData& get_current_frame() { return _frames[_frameNumber % FRAME_OVERLAP]; }
 
 private:
 	void init_vulkan();
