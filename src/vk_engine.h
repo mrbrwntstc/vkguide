@@ -59,12 +59,20 @@ struct Camera
 	float velocity_up = 0;
 };
 
+struct GPUCameraData{
+	glm::mat4 view;
+	glm::mat4 proj;
+	glm::mat4 viewproj;
+};
+
 struct FrameData
 {
 	VkSemaphore _presentSemaphore, _renderSemaphore;
 	VkFence _renderFence;
 	VkCommandPool _commandPool;
 	VkCommandBuffer _mainCommandBuffer;
+	AllocatedBuffer cameraBuffer;
+	VkDescriptorSet globalDescriptor;
 };
 
 constexpr unsigned int FRAME_OVERLAP = 2;
@@ -136,6 +144,11 @@ public:
 	FrameData _frames[FRAME_OVERLAP];
 	inline FrameData& get_current_frame() { return _frames[_frameNumber % FRAME_OVERLAP]; }
 
+	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
+	
+	VkDescriptorSetLayout _globalSetLayout;
+	VkDescriptorPool _descriptorPool;
+
 private:
 	void init_vulkan();
 	void init_swapchain();
@@ -151,6 +164,7 @@ private:
 	void upload_mesh(Mesh& mesh);
 
 	void init_scene();
+	void init_descriptors();
 };
 
 class PipelineBuilder
