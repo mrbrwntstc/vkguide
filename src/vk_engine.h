@@ -69,10 +69,15 @@ struct FrameData
 {
 	VkSemaphore _presentSemaphore, _renderSemaphore;
 	VkFence _renderFence;
+
 	VkCommandPool _commandPool;
 	VkCommandBuffer _mainCommandBuffer;
+
 	AllocatedBuffer cameraBuffer;
 	VkDescriptorSet globalDescriptor;
+
+	AllocatedBuffer objectBuffer;
+	VkDescriptorSet objectDescriptor;
 };
 
 struct GPUSceneData {
@@ -81,6 +86,11 @@ struct GPUSceneData {
 	glm::vec4 ambientColor;
 	glm::vec4 sunlightDirection; //w for sun power
 	glm::vec4 sunlightColor;
+};
+
+struct GPUObjectData
+{
+	glm::mat4 modelMatrix;
 };
 
 constexpr unsigned int FRAME_OVERLAP = 2;
@@ -155,6 +165,7 @@ public:
 	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 	
 	VkDescriptorSetLayout _globalSetLayout;
+	VkDescriptorSetLayout _objectSetLayout;
 	VkDescriptorPool _descriptorPool;
 
 	VkPhysicalDeviceProperties _gpuProperties;
